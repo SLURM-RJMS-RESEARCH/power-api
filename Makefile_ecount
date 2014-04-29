@@ -1,0 +1,83 @@
+###############################################################################
+#
+# Makefile for ecount library. Provides simple access to RAPL energy counters
+# on Intel x86 processors via PAPI.
+#
+# Derived from Makefile written by Benoit Meister <meister@reservoir.com>
+#
+# Author: Tom Henretty <henretty@reservoir.com>
+#         Athanasios Konstantinidis <konstantinidis@reservoir.com>
+#
+###############################################################################
+#
+# Copyright 2013-2014 Reservoir Labs, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+###############################################################################
+
+
+#===---------------------------------------------------------------------------
+# PAPI info
+#------------------------------------------------------------------------------
+PAPI_LIB := $(PAPI_HOME)/lib
+PAPI_INCLUDE := $(PAPI_HOME)/include
+
+CFLAGS += -march=native -std=c99 -Wall -Wno-div-by-zero -fPIC 
+CFLAGS += -I$(PAPI_INCLUDE) -Iinclude
+
+ifdef DEBUG
+CFLAGS += -g -O0
+else
+CFLAGS += -O3 -DNDEBUG
+endif
+
+.PHONY: all clean test html
+
+CC := gcc
+
+
+#===---------------------------------------------------------------------------
+# Library config
+#------------------------------------------------------------------------------
+SOFLAGS = -shared -L$(PAPI_LIB) -lpapi
+
+SRC := $(wildcard src/ecount.c)
+OBJ := $(patsubst %.c, %.o, $(SRC))
+
+LIB     := lib/libecount.a
+DYN_LIB := lib/libecount.so
+
+
+$(LIB): $(CFLAGS) += -c
+
+
+#===---------------------------------------------------------------------------
+# Library build
+#------------------------------------------------------------------------------
+all: $(LIB) $(DYN_LIB)
+
+$(LIB): $(OBJ)
+	mkdir -p lib
+	$(AR) rcvs $@ $^ && ranlib $@
+
+$(DYN_LIB): $(OBJ)
+	mkdir -p lib
+	$(CC) $(CFLAGS) $(SOFLAGS) -o $(DYN_LIB) $(OBJ)
+
+
+#===---------------------------------------------------------------------------
+# Etc.
+#------------------------------------------------------------------------------
+clean:
+	rm -rf $(OBJ) $(LIB) $(DYN_LIB)

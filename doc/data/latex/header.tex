@@ -1,0 +1,84 @@
+\documentclass[letterpaper]{book}
+\usepackage{makeidx}
+\usepackage{natbib}
+\usepackage{graphicx}
+
+% Reservoir code
+%\usepackage{epstopdf}
+%
+
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{ifthen}
+\usepackage[table]{xcolor}
+\usepackage{textcomp}
+\usepackage{alltt}
+\usepackage{ifpdf}
+\ifpdf
+\usepackage[pdftex,
+            pagebackref=true,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\else
+\usepackage[ps2pdf,
+            pagebackref=true,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\usepackage{pspicture}
+\fi
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[scaled=.90]{helvet}
+\usepackage{courier}
+\usepackage{sectsty}
+\usepackage[titles]{tocloft}
+\usepackage{doxygen}
+\lstset{language=C++,inputencoding=utf8,basicstyle=\footnotesize,breaklines=true,breakatwhitespace=true,tabsize=4,numbers=left }
+\makeindex
+\setcounter{tocdepth}{3}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\familydefault}{\sfdefault}
+\hfuzz=15pt
+\setlength{\emergencystretch}{15pt}
+\hbadness=750
+\tolerance=750
+\begin{document}
+\hypersetup{pageanchor=false,citecolor=blue}
+\begin{titlepage}
+\vspace*{1cm}
+\begin{center}
+\includegraphics[scale=1.4]{lablogored.pdf} \\
+\vspace{-3.5cm}
+{\large $projectname \\ $projectnumber }\\
+\vspace*{1cm}
+\vspace*{0.5cm}
+\end{center}
+\end{titlepage}
+\clearpage
+\vspace*{15.0cm}
+
+{\small
+Sponsored by: \\
+Defense Advanced Research Projects Agency \\
+Microsystems Technology Office (MTO) \\
+Program: Power Efficiency Revolution for Embedded Computing Technologies (PERFECT) \\
+Issued by DARPA/CMO under Contract No: HR0011-12-C-0123 \\
+
+The views and conclusions contained in this document are those of the authors 
+and should not be interpreted as representing the official policies, either 
+expressly or implied, of the Defense Advanced Research Projects Agency or the 
+U.S. Government.
+
+Copyright \textcopyright ~2003-2014 Reservoir Labs, Inc.
+}
+\pagenumbering{roman}
+\tableofcontents
+\clearemptydoublepage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true,citecolor=blue}

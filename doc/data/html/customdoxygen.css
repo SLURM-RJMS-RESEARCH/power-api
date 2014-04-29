@@ -1,0 +1,9 @@
+/* The standard CSS for doxygen */
+ 
+#projectname
+{
+	font: 200% Tahoma, Arial,sans-serif;
+	margin: 0px;
+	padding: 2px 0px;
+}
+

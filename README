@@ -1,0 +1,176 @@
+--------
+CONTENTS
+--------
+
+1. Introduction
+2. System Requirements
+3. Hardware / BIOS Setup
+4. CPU Governor Setup
+5. Building PAPI
+6. Build Instructions
+7. Usage
+
+---------------
+1. INTRODUCTION
+---------------
+
+The Power API is a C language interface to system power controls. The goal of
+the Power API is to provide a cross-platform interface for controlling and
+monitoring system power consumption at coarse and fine granularity.
+
+----------------------
+2. SYSTEM REQUIREMENTS
+----------------------
+
+Hardware:
+  * x86 CPU
+  * Intel Running Average Power Limit (RAPL) capable CPU for energy measurement
+
+OS:
+  * Tested on Ubuntu 12.04
+  * Other recent Linux distros should work as well
+  * sudo privileges
+
+Required software:
+  * GCC (any recent version)
+  * GNU Make (any recent version)
+  * pkgconfig (any recent version)
+  * GLib 2.0+
+  * PAPI (any recent version) with the "rapl" component build-in
+  * libpcre library and development headers (any recent version)
+
+Optional software:
+  * CUnit 2.0+
+  * Doxygen (any recent version)
+
+
+-----------------
+3. HARDWARE SETUP
+-----------------
+
+* Intel: Hyperthreading disabled in BIOS
+* Intel: Turbo Boost disabled in BIOS
+* AMD: Turbo Core disabled in BIOS
+
+
+---------------------
+4. CPU GOVERNOR SETUP
+---------------------
+
+The Power API uses the sysfs interface to the Linux cpufreq subsystem to manage 
+frequency scaling. The cpufreq subsystem must be configured to use the 
+'userspace' CPU governor. This must be done as a superuser and can be 
+accomplished using the included script in the bin/ directory. Execute the 
+following command from the root of the Power API source directory:
+
+$ sudo bin/set-governor.sh userspace
+
+The governor can be changed back to its default value ('ondemand' on most 
+systems) by executing the following command:
+
+$ sudo bin/set-governor.sh ondemand 
+
+
+----------------
+5. BUILDING PAPI
+----------------
+
+The current version of the Power API depends on the Performance Application 
+Programming Interface (PAPI) library to provide access to Intel RAPL energy 
+counters. More information on PAPI (including documentation) can be found on 
+the web:
+
+	http://icl.cs.utk.edu/papi/
+
+In order for the Power API to work, PAPI needs to be built with the 
+"rapl" component. This option is set at configure time as shown below. To 
+build PAPI and prepare your environment for execution of PAPI/Power API 
+codes, please execute the following instructions:
+
+# Build and install PAPI
+$ tar xzvf papi-5.3.0.tar.gz && cd papi-5.3.0
+$ ./configure --prefix=/usr/local/papi-5.3.0 --with-components="rapl"
+$ make
+$ sudo make install
+
+# Configure environment
+$ export PATH=/usr/local/papi-5.3.0:$PATH
+$ export LD_LIBRARY_PATH=/usr/local/papi-5.3.0:$LD_LIBRARY_PATH
+$ sudo modprobe msr
+$ sudo chmod 666 /dev/cpu/*/msr 
+
+Please note that it is possible that this PAPI installation may conflict with
+previous versions of PAPI installed on your system. For this reason, PAPI 
+directories are placed at the front of PATH variables.
+
+*** There are currently significant restrictions on how programs must be built
+    and run to read Intel energy counters using PAPI.  The restrictions
+    are covered in the PAPI documentation at the following link:
+
+	http://icl.cs.utk.edu/projects/papi/wiki/PAPITopics:RAPL_Access
+
+*** These restrictions directly affect programs built to use the Power API 
+    reference implementation.
+
+---------------------
+6. BUILD INSTRUCTIONS
+---------------------
+
+To build, first specify the PAPI_HOME variable (PAPI installation path) located 
+in the Makefile of the Power API source directory. Then execute the following 
+command from the root of the Power API source directory:
+
+$ make
+
+This command will produce the shared library lib/power_api.so. 
+
+To test the code, execute the following command from the root of the Power API 
+source directory:
+
+$ sudo make test
+
+This will produce and run the bin/test-driver executable. The test command 
+must be run as root or as a user that has permission to change the cpufreq 
+governor. Note that because of the early development stage of the API some of 
+the test cases are not fully implemented and will evantually fail.
+
+To build the HTML or PDF API documentation, execute the following commands 
+from the root of the Power API source directory:
+
+$ make html
+$ make latex
+
+These commands will place HTML and PDF documentation in doc/html and doc/ 
+respectively. For building all documentation execute the following:
+
+$ make docs
+
+--------
+7. USAGE
+--------
+
+In order for the Power API to acquire the requested performance and energy data
+it accesses protected system files through PAPI as mentioned in Chapter 5. 
+As a result, the user needs to either (1) dynamically link the Power API 
+library using the "-Wl,-rpath" linker options to their compiler or (2) 
+statically link the Power API. 
+
+
+For (1), add the lib/ directory iat the root of the Power API source directory 
+to the "-Wl,-rpath" as a linker argument when compiling your application with 
+gcc. For (2), statically link your application with the lib/libpower_api.a 
+library.
+
+Again, please see the PAPI documentation for more details:
+
+	http://icl.cs.utk.edu/projects/papi/wiki/PAPITopics:RAPL_Access
+
+Further, the CPU frequency controls in sysfs must be writable by the user       
+executing the program. The command below makes these controls writable for      
+_all_ users, although finer grained solutions can be implemented.               
+                                                                                
+$ sudo chmod -R 777 /sys/devices/system/cpu/cpu*                                
+                                                                                
+Alternatively, your program may be executed with priveliged access via sudo:    
+                                                                                
+$ sudo <your Power API executable>
