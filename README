@@ -36,7 +36,7 @@ Required software:
   * GNU Make (any recent version)
   * pkgconfig (any recent version)
   * GLib 2.0+
-  * PAPI (any recent version) with the "rapl" component build-in
+  * PAPI (any recent version) with the "rapl" component built-in
   * libpcre library and development headers (any recent version)
 
 Optional software:
@@ -132,7 +132,7 @@ $ sudo make test
 This will produce and run the bin/test-driver executable. The test command 
 must be run as root or as a user that has permission to change the cpufreq 
 governor. Note that because of the early development stage of the API some of 
-the test cases are not fully implemented and will evantually fail.
+the test cases are not fully implemented and will fail.
 
 To build the HTML or PDF API documentation, execute the following commands 
 from the root of the Power API source directory:
@@ -171,6 +171,6 @@ _all_ users, although finer grained solutions can be implemented.
                                                                                 
 $ sudo chmod -R 777 /sys/devices/system/cpu/cpu*                                
                                                                                 
-Alternatively, your program may be executed with priveliged access via sudo:    
+Alternatively, your program may be executed with privileged access via sudo:    
                                                                                 
 $ sudo <your Power API executable>
