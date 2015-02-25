@@ -18,6 +18,8 @@ The Power API is a C language interface to system power controls. The goal of
 the Power API is to provide a cross-platform interface for controlling and
 monitoring system power consumption at coarse and fine granularity.
 
+Warning: part of the library is based on code under Appache license in the github repository.
+
 ----------------------
 2. SYSTEM REQUIREMENTS
 ----------------------
@@ -27,7 +29,7 @@ Hardware:
   * Intel Running Average Power Limit (RAPL) capable CPU for energy measurement
 
 OS:
-  * Tested on Ubuntu 12.04
+  * Tested on Ubuntu 14.04
   * Other recent Linux distros should work as well
   * sudo privileges
 
@@ -37,7 +39,6 @@ Required software:
   * pkgconfig (any recent version)
   * GLib 2.0+
   * PAPI (any recent version) with the "rapl" component built-in
-  * libpcre library and development headers (any recent version)
 
 Optional software:
   * CUnit 2.0+
@@ -48,24 +49,34 @@ Optional software:
 3. HARDWARE SETUP
 -----------------
 
-* Intel: Hyperthreading disabled in BIOS
-* Intel: Turbo Boost disabled in BIOS
-* AMD: Turbo Core disabled in BIOS
+Preferably:
+  * Intel: Hyperthreading disabled in BIOS
+  * Intel: Turbo Boost disabled in BIOS
+  * AMD: Turbo Core disabled in BIOS
 
 
 ---------------------
 4. CPU GOVERNOR SETUP
 ---------------------
 
-The Power API uses the sysfs interface to the Linux cpufreq subsystem to manage 
-frequency scaling. The cpufreq subsystem must be configured to use the 
-'userspace' CPU governor. This must be done as a superuser and can be 
-accomplished using the included script in the bin/ directory. Execute the 
+The Power API uses the sysfs interface to the Linux cpufreq subsystem to manage
+frequency scaling. The cpufreq subsystem must be configured to use the
+'acpi-cpufreq' driver and the 'userspace' CPU governor.
+
+In Linux kernels starting with version 3.9, the 'intel-pstate' driver is used
+by default when a Intel CPU is present. It must be disabled in order for the
+Power API to work. That can be achieved by adding 'intel_pstate=disable' to the
+kernel boot options. Typically, when using GRUB, that option must be added to
+'GRUB_CMDLINE_LINUX_DEFAULT' in /etc/default/grub before running 'update-grub'
+and rebooting.
+
+Setting the 'userspace' governor must be done as a superuser and can be
+accomplished using the included script in the bin/ directory. Execute the
 following command from the root of the Power API source directory:
 
 $ sudo bin/set-governor.sh userspace
 
-The governor can be changed back to its default value ('ondemand' on most 
+The governor can be changed back to its default value ('ondemand' on most
 systems) by executing the following command:
 
 $ sudo bin/set-governor.sh ondemand 
@@ -156,7 +167,7 @@ library using the "-Wl,-rpath" linker options to their compiler or (2)
 statically link the Power API. 
 
 
-For (1), add the lib/ directory iat the root of the Power API source directory 
+For (1), add the lib/ directory at the root of the Power API source directory 
 to the "-Wl,-rpath" as a linker argument when compiling your application with 
 gcc. For (2), statically link your application with the lib/libpower_api.a 
 library.

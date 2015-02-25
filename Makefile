@@ -7,7 +7,7 @@
 #
 ###############################################################################
 #
-# Copyright 2013-2014 Reservoir Labs, Inc.
+# Copyright 2013-2015 Reservoir Labs, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,70 +30,60 @@
 # Use GCC
 CC := gcc
 
-PAPI_HOME ?= /usr/local/papi-5.2.0
-PAPI_LIB := $(PAPI_HOME)/lib
-
 # Static and shared libraries
-STATIC_LIB := lib/libpower_api.a
-SHARED_LIB := lib/libpower_api.so
+STATIC_LIB := lib/libpower-api.a
+SHARED_LIB := lib/libpower-api.so
 
 # Vars for sources etc.
-SOURCES := src/power_api.c
-HEADERS := include/power_api.h
+SOURCES := $(wildcard src/*.c)
+HEADERS := $(wildcard include/*.h)
 OBJECTS := $(SOURCES:.c=.o)
 
-TEST_TARGET := bin/test-driver
-TEST_SOURCES := $(wildcard cunit/*.c)
-TEST_HEADERS := $(wildcard include/*.h)
-TEST_OBJECTS := $(TEST_SOURCES:.c=.o)
+TOOLS_TARGET := tools/emeas
 
-# Flags 
-SOFLAGS := -fPIC -shared -L./lib -lecount -Wl,-rpath=$(PAPI_LIB)
+# Flags
+EXTRA_CFLAGS :=$(shell ./extra_flags.sh --cflags)
+EXTRA_LDFLAGS :=$(shell ./extra_flags.sh --ldflags)
+CFLAGS = -std=gnu99 -g -O3 -Wall -Wextra -march=native -Iinclude `pkg-config --cflags glib-2.0` $(EXTRA_CFLAGS)
 
-$(SHARED_LIB): CFLAGS := -std=c99 -O2 -march=native -Iinclude `pkg-config --libs --cflags glib-2.0` $(SOFLAGS)
+$(SHARED_LIB): CFLAGS += -fPIC -shared
+$(STATIC_LIB): CFLAGS += -fPIC
 
-$(STATIC_LIB): CFLAGS := -std=c99 -O2 -march=native -Iinclude `pkg-config --libs --cflags glib-2.0` -fPIC 
-
-$(TEST_TARGET): CFLAGS := -std=c99 -O2 -Iinclude `pkg-config --libs --cflags glib-2.0`
-$(TEST_TARGET): LDFLAGS := -L/usr/lib -lcunit -L./lib -Wl,-rpath=./lib -lpower_api -lglib-2.0
-
-LDFLAGS := -lrt
-
+LDFLAGS = `pkg-config --libs glib-2.0` -lrt -g $(EXTRA_LDFLAGS)
 
 #===---------------------------------------------------------------------------
 # Targets
 #===---------------------------------------------------------------------------
-.PHONY: all clean test docs html latex 
-
+.PHONY: all clean distclean test tools doc docs html latex 
 
 # Libraries
-all: make_lib_dir ecount_lib $(SHARED_LIB) $(STATIC_LIB) 
+all: $(SHARED_LIB) $(STATIC_LIB)
 
-make_lib_dir:
-	mkdir -p lib
-
-ecount_lib: 
-	make -f Makefile_ecount PAPI_HOME=$(PAPI_HOME)
+%.o: %.c
+	$(CC) -c $(CFLAGS) $^ -o $@
 
 $(STATIC_LIB): $(OBJECTS)
-	$(AR) rvs $@ $^ && ranlib $@ 
+	mkdir -p lib
+	$(AR) rvs $@ $(OBJECTS) && ranlib $@ 
 
 $(SHARED_LIB): $(OBJECTS)
-	$(CC) $(CFLAGS) $(SOFLAGS) -o $(SHARED_LIB) $(OBJECTS)
+	mkdir -p lib
+	$(CC) $(CFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
 
 
 # Test driver
-$(TEST_TARGET): $(OBJECTS) $(TEST_OBJECTS)
-	mkdir -p bin
-	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_OBJECTS) $(LDFLAGS)
-
-test: $(TEST_TARGET)
+test:
+	$(MAKE) -C cunit
 	sudo modprobe msr
 	sudo chmod 666 /dev/cpu/*/msr
-	sudo ./bin/test-driver
+	sudo bin/test-driver
 
+# tools
+tools: $(SHARED_LIB)
+	$(MAKE) -C tools
 
 # Docs
+doc: docs
 docs: html latex
 
 html: doc/html/index.html
@@ -113,6 +103,11 @@ doc/latex/refman.pdf: $(SOURCES) $(HEADERS) doc/doxyfiles/latex.Doxyfile
 
 # Clean up
 clean:
-	make -f Makefile_ecount clean
-	rm -rf $(OBJECTS) $(TEST_OBJECTS) doc/html/ doc/html-user doc/latex doc/latex-user lib/ bin/test-driver
+	rm -rf $(OBJECTS) doc/html/ doc/html-user doc/latex doc/latex-user
+	$(MAKE) -C cunit clean
+	$(MAKE) -C tools clean
 
+distclean: clean
+	rm -f $(STATIC_LIB) $(SHARED_LIB)
+	$(MAKE) -C cunit distclean
+	$(MAKE) -C tools distclean

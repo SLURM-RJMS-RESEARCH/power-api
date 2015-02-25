@@ -9,7 +9,7 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "Power API"
-PROJECT_NUMBER         = "2014.05.01"
+PROJECT_NUMBER         = "2015.01.21"
 PROJECT_BRIEF          = "Cross Platform DVFS Monitoring and Control"
 PROJECT_LOGO           = doc/data/img/lablogo.eps
 OUTPUT_DIRECTORY       = ./doc

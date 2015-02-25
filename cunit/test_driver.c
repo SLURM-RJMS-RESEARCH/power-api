@@ -15,26 +15,29 @@
 
 
 
-#include "power_api.h"
+#include "power-api.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <glib.h>
+#include <unistd.h>
 
 #include "CUnit/Basic.h"
 
+static pwr_ctx_t *ctx;
 
-int initialize() {
-    void* hw_behavior;
-    void* speed_policy;
-    void* scheduling_policy;
-    return pwr_initialize(hw_behavior, speed_policy, scheduling_policy);
+void initialize() {
+    void* hw_behavior = NULL;
+    void* speed_policy = NULL;
+    void* scheduling_policy = NULL;
+
+    ctx = pwr_initialize(hw_behavior, speed_policy, scheduling_policy);
+    CU_ASSERT(ctx != NULL);
 }
 
-int finalize() {
-    return pwr_finalize();
+void finalize() {
+    pwr_finalize(ctx);
 }
 
 int init_suite1(void) {
@@ -46,86 +49,76 @@ int clean_suite1(void) {
 }
 
 void test_initialize(void) {
-    int initialized = TRUE;
-    retval_t ret;
     
-    ret = pwr_is_initialized(&initialized);
-    CU_ASSERT(PWR_OK == ret);
-    CU_ASSERT(FALSE == initialized);
+    bool initialized = pwr_is_initialized(NULL, PWR_MODULE_STRUCT);
+    CU_ASSERT(false == initialized);
 
-    ret = initialize();
-    CU_ASSERT(PWR_OK == ret);
+    initialize();
+    CU_ASSERT(ctx != NULL);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
 
-    ret = pwr_is_initialized(&initialized);
-    CU_ASSERT(PWR_OK == ret);
-    CU_ASSERT(TRUE == initialized);
+    initialized = pwr_is_initialized(ctx, PWR_MODULE_STRUCT);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
+    CU_ASSERT(true == initialized);
 
-    ret = finalize();
+    initialized = pwr_is_initialized(ctx, PWR_MODULE_DVFS);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
+    CU_ASSERT(true == initialized);
+
+    initialized = pwr_is_initialized(ctx, PWR_MODULE_ENERGY);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
+    CU_ASSERT(true == initialized);
+
+    finalize(ctx);
 }
 
 void test_finalize(void) {
-    retval_t ret;
     initialize();
+    CU_ASSERT(ctx != NULL);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
     
-    int initialized;
-    pwr_is_initialized(&initialized);
-    ret = pwr_finalize();
-    CU_ASSERT(PWR_OK == ret);
-    CU_ASSERT(TRUE == initialized);
-
-    ret = pwr_is_initialized(&initialized);
-    CU_ASSERT(PWR_OK == ret);
-    CU_ASSERT(FALSE == initialized);
+    pwr_finalize(ctx);
 }
 
 void test_num_islands(void) {
-    retval_t ret;
     initialize();
 
-    long num_islands = -1;
-    ret = pwr_num_islands(&num_islands);
-    CU_ASSERT(PWR_OK == ret);
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
+    CU_ASSERT(PWR_OK == pwr_error(ctx));
     CU_ASSERT(num_islands > 0);
-    CU_ASSERT(num_islands < PWR_MAX_ISLANDS);
+    CU_ASSERT(num_islands < PWR_MAX_PHYS_ISLANDS);
     //fprintf(stderr, "\nFound %ld voltage islands\n", num_islands);
 
     finalize();
 }
 
 void test_phys_islands(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
+    unsigned long num_cpus = pwr_num_phys_cpus(ctx);
+    CU_ASSERT(pwr_error(ctx) == PWR_OK);
+    CU_ASSERT(num_cpus > 0);
+    CU_ASSERT(num_cpus < PWR_MAX_PHYS_CPU);
 
-    island_id_t* islands = (island_id_t*)malloc(num_islands*sizeof(island_id_t));
-    pwr_islands(islands);
-    CU_ASSERT(PWR_OK == ret);
-    CU_ASSERT(NULL != islands);
-
-    for (int i=0; i<num_islands; ++i) {
-        island_id_t id = islands[i];
-        CU_ASSERT(id >= 0);
-        CU_ASSERT(id < num_islands);
+    for (unsigned long i = 0; i < num_cpus; ++i) {
+        unsigned long cpu_island = pwr_island_of_cpu(ctx, i);
+        CU_ASSERT(pwr_error(ctx) == PWR_OK);
+        CU_ASSERT(cpu_island < num_islands);
     }
 
-    free(islands);
     finalize();
 }
 
 void test_num_speed_levels(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
-
-    long num_speed_levels = -1;
+    unsigned int num_speed_levels = 0;
     
-    for (int i=0; i<num_islands; ++i) {
-        ret = pwr_num_speed_levels(i, &num_speed_levels);
-        CU_ASSERT(PWR_OK == ret); 
+    for (unsigned long i = 0; i < num_islands; ++i) {
+        num_speed_levels = pwr_num_speed_levels(ctx, i);
+        CU_ASSERT(PWR_OK == pwr_error(ctx)); 
         CU_ASSERT(num_speed_levels > 0);
         CU_ASSERT(num_speed_levels < PWR_MAX_SPEED_LEVELS);
         //fprintf(stderr, "\nFound %ld speed levels (island %d)\n", num_speed_levels, i);
@@ -135,111 +128,91 @@ void test_num_speed_levels(void) {
 }
 
 void test_current_speed_level(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
-
-    for (int i=0; i<num_islands; ++i) {
-        speed_level_t level = -1;
-        ret = pwr_current_speed_level(i, &level);
-        CU_ASSERT(PWR_OK == ret);
-        CU_ASSERT(level >= 0);
+    for (unsigned long i = 0; i < num_islands; ++i) {
+        unsigned int nb_levels = pwr_num_speed_levels(ctx, i);
+        unsigned int level = pwr_current_speed_level(ctx, i);
+        CU_ASSERT(PWR_OK == pwr_error(ctx));
+        CU_ASSERT(level < nb_levels);
     }
 
     finalize();
 }
 
 void test_request_speed_level(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
-
-    island_id_t* islands = (island_id_t*)malloc(num_islands*sizeof(island_id_t));
-    pwr_islands(islands);
-
-    long num_speed_levels;
-    for (int i=0; i<num_islands; ++i) {
-        pwr_num_speed_levels(i, &num_speed_levels);
-        for (speed_level_t level=0; level<num_speed_levels; ++level) {
-            ret = pwr_request_speed_level(i, level);
-            CU_ASSERT(PWR_OK == ret); 
+    for (unsigned long i = 0; i < num_islands; ++i) {
+        unsigned int num_speed_levels = pwr_num_speed_levels(ctx, i);
+        for (unsigned int level = 0; level < num_speed_levels; ++level) {
+            pwr_request_speed_level(ctx, i, level);
+            CU_ASSERT(PWR_OK == pwr_error(ctx)); 
         }
     }
 
-    free(islands);
     finalize();
 }
 
 void test_increase_speed_level(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
-
-    island_id_t* islands = (island_id_t*)malloc(num_islands*sizeof(island_id_t));
-    pwr_islands(islands);
-
-    long num_speed_levels;
-    for (int i=0; i<num_islands; ++i) {
-        pwr_num_speed_levels(i, &num_speed_levels);
-        for (speed_level_t base_level=0; base_level<num_speed_levels; ++base_level) {
-            pwr_request_speed_level(i, base_level);
-            for (int delta=-base_level+1; delta<num_speed_levels-base_level-1; ++delta) {
-                ret = pwr_modify_speed_level(i, delta, base_level);
-                CU_ASSERT(PWR_OK == ret); 
-                pwr_request_speed_level(i, base_level);
+    for (unsigned long i = 0; i < num_islands; ++i) {
+        unsigned int num_speed_levels = pwr_num_speed_levels(ctx, i);
+        for (unsigned int base_level = 0; base_level < num_speed_levels; ++base_level) {
+            pwr_request_speed_level(ctx, i, base_level);
+            for (int delta= -base_level + 1;
+                delta < (int) num_speed_levels - (int) base_level - 1;
+                ++delta)
+            {
+                pwr_increase_speed_level(ctx, i, delta);
+                CU_ASSERT(PWR_OK == pwr_error(ctx)); 
+                pwr_request_speed_level(ctx, i, base_level);
             }
         }
     }
 
-    free(islands);
     finalize();
 }
 
 void test_agility(void) {
-    retval_t ret;
     initialize();
+    unsigned long num_islands = pwr_num_phys_islands(ctx);
 
-    long num_islands;
-    pwr_num_islands(&num_islands);
-
-    island_id_t* islands = (island_id_t*)malloc(num_islands*sizeof(island_id_t));
-    pwr_islands(islands);
-
-    long num_speed_levels;
-    agility_t best_agility;
-	agility_t worst_agility;
-    for (int i=0; i<num_islands; ++i) {
-        ret = pwr_agility(i, 0, 1, &best_agility, &worst_agility);
-        CU_ASSERT(PWR_OK == ret);
-        // CU_ASSERT(agility > 0);
-        //fprintf(stderr, "\nFound agility %ld (island %d)\n", agility, i);
+    for (unsigned long i = 0; i < num_islands; ++i) {
+        agility_t agility = pwr_agility(ctx, i, 0, 1);
+        CU_ASSERT(PWR_OK == pwr_error(ctx));
+        CU_ASSERT(agility > 0);
     }
 
     finalize();
 }
 
 void test_power_energy_counters(void) {
-	retval_t ret;
-	energy_t e_j, e_uj;
-	timestamp_t t_sec, t_nsec;
-	initialize();
-	
-	long num_islands;
-	ret = pwr_num_islands(&num_islands);
-	island_id_t * islands = (island_id_t*)malloc(num_islands*sizeof(island_id_t));
-    ret = pwr_islands(islands);
-	CU_ASSERT(PWR_OK == ret);
-	
-	for ( int i = 0 ; i < num_islands ; i++ ) {
-		ret = pwr_energy_counter( islands[i], &e_j, &e_uj, &t_sec, &t_nsec);
-		CU_ASSERT(PWR_OK == ret);
-	}
+    initialize();
+
+    pwr_start_energy_count(ctx);
+    CU_ASSERT(pwr_error(ctx) == PWR_OK);
+    sleep(1);
+    const pwr_emeas_t *res = pwr_stop_energy_count(ctx);
+    CU_ASSERT(pwr_error(ctx) == PWR_OK);
+    CU_ASSERT(res != NULL);
+    CU_ASSERT(res->nbValues > 0);
+
+    for (unsigned int i = 0; i < res->nbValues; ++i) {
+        printf("i = %u\n", i);
+        printf("%s %s\n", res->names[i], res->units[i]);
+        CU_ASSERT(res->values[i] > 0);
+
+        CU_ASSERT(res->names[i] != NULL);
+        CU_ASSERT(strlen(res->names[i]) > 0);
+
+        CU_ASSERT(res->units[i] != NULL);
+        CU_ASSERT(strlen(res->units[i]) > 0);
+    }
 
 	finalize();
 }
@@ -320,11 +293,6 @@ int main() {
         CU_cleanup_registry();
         return CU_get_error();
     }
-	/* Quick fix to a strange problem that causes energy measurments to return zero always.
-		The underlying cause of this problem is currently unknown. With this method we avoid finalizing
-		and initializing the ecount environment multiple times which appears to be the trigger for
-		this problem. */
-    pwr_ecount_finalize(); 
     // Run all tests
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
